@@ -1,0 +1,5 @@
+  PROJECT : c-comm2017
+  TRACK   : simulation
+  OS      : centos7
+  MEMORY  : 512 MB
+  COMMAND : /g/c-xem2/gaskelld/externals_all_xem2/run_extern 40degd2

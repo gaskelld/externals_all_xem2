@@ -1,0 +1,8 @@
+JOBNAME: xem_externals_40deg_deut_test
+PROJECT: c-comm2017
+MAIL: gaskelld@jlab.org
+COMMAND:/g/c-xem2/gaskelld/externals_all_xem2/run_extern_batch 40degd2
+MEMORY: 2048 MB
+TRACK: simulation
+OS: centos7
+

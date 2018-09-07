@@ -1,0 +1,8 @@
+JOBNAME: decode_9974_0
+PROJECT: c-comm2017
+MAIL: camsonne@jlab.org
+COMMAND: ls
+MEMORY: 2048 MB
+TRACK: simulation
+OS: centos7
+

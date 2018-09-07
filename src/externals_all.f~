@@ -57,7 +57,8 @@ C=======================================================================
      > SIGMA_ELPK_154,SIGMA_BORNPLSQE,SIGMA_elastic
       real e0sv(100000),epsv(100000),thsv(100000),xsv(100000)
       real w2sv(100000),sbsv(100000),srsv(100000),srqesv(100000)
-      real srinsv(100000),srelsv(100000), ddnom
+      real sbqesv(100000),sbisv(100000),srinsv(100000)
+      real srelsv(100000), ddnom
       INTEGER I,II,ISEG_NUM,j,npts
       REAL           CONTINUUM,QETAIL,QEPEAK,EPEAK,ATAILFL1,ATAILFL_QE
       EXTERNAL       CONTINUUM,QETAIL,QEPEAK,EPEAK,ATAILFL1,ATAILFL_QE
@@ -67,6 +68,13 @@ C=======================================================================
       common/experiment/ doeg1b
       real*4  xval(37),tmptmp,psf1(5),psf2(5),dr,w2last,ymax,ymin
       real*8 q28,w8,w18,w28,rcsim
+C Stuff for Coulomb corrections
+      real E0SET_cc, EPSET_cc, f1cc, ccor, deltae_cc
+      real SIGMABORN_CC, SIGMACORR_CC, SIGTOT_CC
+
+      COMMON/COULOMB/ doccor
+      logical doccor
+
       COMMON/ioana/xval
 
       real*8 jane0(23)/1.2,1.2,1.2,1.2,1.2,1.2,1.2,1.2,1.2,
@@ -95,10 +103,14 @@ c Put "Eg1b" on first line of extern.inpe for speical eg1b in/out format
       logical doing_elas
       common/doelas/ doing_elas
 
+C set true if you want to calculate the COulomb corrections AND
+c incorporate in your radiative correction
+      doccor=.true.
+
 c set ture if doing many points. 
 c ONLY USE if Jlab kinematics up to 6 gev
-c      usegrd=.true.
-      usegrd=.false.
+      usegrd=.true.
+c      usegrd=.false.
 
 c set true if want proton elastic to be smeared and treated as q.e.
 c if so, will smear by amound smrdEp
@@ -129,7 +141,7 @@ c      write(6,'(''A b='',e11.3)') b
 
 c      write(6,'(1x,''got here'')')
 c      open(unit=17,file='output/externals/kpp_shms_488.out')
-      open(unit=17,file='output/externals/test.out')
+c      open(unit=17,file='output/externals/test.out')
 c      open(unit=18,file='louk.out')
 c      open(unit=19,file='ratioy.top')
 c      open(unit=29,file='ratiow2.top')
@@ -554,26 +566,68 @@ c    >          DELTA_ELPK(2), TOTAL(2), SIGMA_BORNPLSQE
      >    EPSET,  x,    W2, DELTA_QE_PK_COS(2), DELTA_INEL(2),
      >       DELTA_QELA(2), DELTA_ELPK(2), TOTAL(2), SIGMA_BORNPLSQE  
       sbsv(npts)= SIGMA_BORNPLSQE
+      sbisv(npts) = SIGMA_BORN
+      sbqesv(npts) = SIGMA_CORR
+
       srsv(npts)= sigma_qela(2) + sigma_elpk(2) + sigma_inel(2)
       srqesv(npts) = sigma_qela(2)
       srelsv(npts) = sigma_elpk(2)
       srinsv(npts) = sigma_inel(2)
 
-c      write(17,'(36x,2e11.4)') sigma_born,sigma_corr 
+      ccor=1.0
+c --- aji ----------------------------------------------
+c now do Coulomb correction - should be set at top
+      if(doccor) then 
+cc first get the vertex quantities and do a target dependent
+cc boost to beam energy and scattered electron energy
+cc and do Coulomb correction.  recipe is given in:
+cc Aste et al., Eur. Phys. J. A 26, 167 (2005)
+cc  note that these deltae_cc's are calculated as follows:
+cc deltae_cc = (1.5)*(Z/R)*(hbar*c)*alpha*0.775
+cc the 0.775 comes from Aste EPJ A 26 167 (2005)
+cc also, all deltae_cc's are computed for Z-1, not Z!/-* 
+         
+         call get_cc_info(iA,iZ,deltae_cc)
+   
+         E0SET_cc  = e0sv(npts)+ deltae_cc
+         EPSET_cc = epsv(npts)+ deltae_cc
+         CALL SECNUCLW(E0SET_cc,EPSET_cc,TH,SIGMABORN_CC)
+         CALL QUASIY8(E0SET_cc,EPSET_cc,TH,SIGMACORR_CC)
+         SIGTOT_CC = SIGMABORN_CC + SIGMACORR_CC
+
+         f1cc = E0SET_cc/e0sv(npts)
+         ccor=1.
+         write(6,*) 'cheesy poofs',
+         if(SIGTOT_CC.gt.0.0) then ! avoid nan
+            ccor = sbsv(npts)/SIGTOT_CC/f1cc/f1cc
+         else
+            ccor=1.0
+         endif
+c------------------------------------------------------------------
+c aji the born model with ccor, since we  radiated the model with  Coulombic
+c effect for this version
+c this means, the "Born" cross section in the output file actually has Coulomb corrections
+c applied - you need to remove them if you want the true "Born" cross section
+         sbsv(npts)= sbsv(npts)/ccor
+         sbisv(npts)= sbisv(npts)/ccor
+         sbqesv(npts)= sbqesv(npts)/ccor
+      endif                     !doccor 
+
+
       if(srsv(npts).ne.0.) then 
-         write(17,'(1x,5f7.3,6e11.4,3i3,4e11.4)') 
+         write(17,'(1x,5f9.4,8e13.5)') 
      >        e0sv(npts),epsv(npts),thsv(npts),
      >        xsv(npts),q2set,
      >        max(0.,sbsv(npts)),
+     >        max(0.,sbisv(npts)),
+     >        max(0.,sbqesv(npts)),
      >        max(0.,srsv(npts)),
      >        max(0.,srelsv(npts)),
      >        max(0.,srqesv(npts)),
      >        max(0.,srinsv(npts)),
-     >        max(0.,SIGMA_BORN),iesv,iqsv,
-     >        iwsv,
-c     >        max(0.,sigma_elpk(1)),
-     >        max(0.,sigma_qela(1) + sigma_elpk(1) + sigma_inel(1)),
-     >        max(0.,sigma_elastic)
+     >        ccor
+c     >        max(0.,sigma_qela(1) + sigma_elpk(1) + sigma_inel(1)),
+c     >        max(0.,sigma_elastic)
       endif
 c      write(18,'(1x,4f10.3)') e0sv(npts),epsv(npts),thsv(npts),
 c     >  1./(1+total(2)/100.)
@@ -1567,6 +1621,39 @@ c       actual density and material of target
         endif
       ENDIF
 
+      IF(INDEX(TARGET,'TRITIUM').GT.0) THEN     ! target geometry for
+                                               ! 25 cm tritium cell
+        ECIR=0.635                             ! endcap inner radius (cm)
+        ECOR=0.635+0.0324                      ! endcap outer radius (cm)
+        TARGLEN=25.0                           ! target length (cm)
+        ENTEC=TARGLEN-ECIR                     ! entrance to end cap (cm)
+        TBAL=TBEAM                             ! material bf the target
+        TBEFOR=T                               ! distance traveled bf
+                                               ! vertex
+        tcm=t*targlen/ttarg                    ! t in cm
+        
+        if((tcm+ECIR/tan(thr)).lt.ENTEC) then  ! e goes through sidewall
+          TAFTER=ECIR*ttarg/sin(thr)/targlen   ! target gas
+          TAAL=TSPEC+TWALL/sin(thr)            ! material af the target 
+                                               ! & side wall
+        else
+          TAFTER=                              ! e goes through end cap
+     >     (sqrt(ECIR**2-((targlen-ECIR-tcm)*sin(thr))**2)
+     >    +(targlen-ECIR-tcm)*cos(thr))*ttarg/targlen !  target gas
+c          if((TAFTER*targlen/ttarg)*sin(thr).gt.0.5) then
+c             ECOR=0.635+0.04279 ! thicker part of exit cap
+c          endif
+          TAAL=TSPEC                           ! material af the target
+     >    +(sqrt(ECOR**2-((targlen-ECIR-tcm)*sin(thr))**2)
+     >    -sqrt(ECIR**2-((targlen-ECIR-tcm)*sin(thr))**2))
+     >    *TWALL/(ECOR-ECIR)                   ! & end cap
+        endif
+        nprnt= nprnt+1
+        if(nprnt.le.6) write(*,125) tcm,tbal,tbefor,tafter,taal
+ 125    format(1x,'TRITIUM rad len=',5f10.5)
+      ENDIF
+
+
       IF(INDEX(TARGET,'4OLD17').GT.0) THEN     ! target geometry for
                                                ! old 4 cm LH2 and LD2
         ECIR=0.795*2.54                        ! endcap inner radius (cm
@@ -2234,20 +2321,50 @@ C calculates cross section per NUCLEUS, not per nucleon.
       REAL E0,EP,TH,SIGMA
       COMMON /CON/ PI,PM,PP,EM,AL   
       REAL PI,PM,PP,EM,AL,W1,W2
+      COMMON /TARGT/ iZ,iA,avgN,avgA,avgM,amuM 
+      INTEGER IZ,IA                                                     
+      REAL AVGN,AVGA,AVGM,AMUM       
       COMMON /SIG/ CSTYPE                                               
-      CHARACTER*1  CSTYPE                                               
+      CHARACTER*1  CSTYPE  
+c Coulomb corrections stuff
+      COMMON /COULOMB/ doccor
+      logical   doccor        
+
+      real deltae_cc, f1cc ! boost and focus factor for coulomb correction.
+      real E0_cc,EP_cc,ccor  
+
+
+cc aji  ----------------------------------------------
+cc apply Coulombic effect to bornmodel and radiate it
+cc corrected vertex model, sigborn should be smaller: so divide
+cc Actually this means that SIGMA_new=SIGMA_nominal/ccor and we 
+cc radiate SIGMA_new
+
+      if(doccor) then
+         call get_cc_info(iA,iZ,deltae_cc)
+         E0_cc  = E0+ deltae_cc
+         EP_cc = EP+ deltae_cc                                        
+      else
+         E0_cc = E0
+         EP_cc = EP
+      endif
                                                                         
 C inelastic tail case         = 'I'                                     
 C quasielastic smeared case   = 'Q'                                     
 C quasielastic unsmeared case = 'P'                                     
 C elastic case                = 'E'                                     
                                                                         
-      IF (CSTYPE.EQ.'I') CALL  SECNUCLW(E0,EP,TH,SIGMA)                  
-      IF (CSTYPE.EQ.'Q') CALL  QUASIY8(E0,EP,TH,SIGMA)                  
-C     IF (CSTYPE.EQ.'Q') CALL  FYXSEC8(E0,EP,TH,SIGMA)                 
-      IF (CSTYPE.EQ.'P') CALL  QELASTIC(E0,TH,SIGMA,W1,W2)                  
-      IF (CSTYPE.EQ.'E') CALL  ELASTIC(E0,EP,TH,SIGMA)                  
-                                                                        
+      IF (CSTYPE.EQ.'I') CALL  SECNUCLW(E0_cc,EP_cc,TH,SIGMA)                  
+      IF (CSTYPE.EQ.'Q') CALL  QUASIY8(E0_cc,EP_cc,TH,SIGMA)                  
+C     IF (CSTYPE.EQ.'Q') CALL  FYXSEC8(E0_cc,EP,TH,SIGMA)                 
+      IF (CSTYPE.EQ.'P') CALL  QELASTIC(E0_cc,TH,SIGMA,W1,W2)                  
+      IF (CSTYPE.EQ.'E') CALL  ELASTIC(E0_cc,EP_cc,TH,SIGMA)                  
+                      
+      f1cc=E0_cc/E0
+      IF(SIGMA.gt.0.0) THEN
+         SIGMA=SIGMA*f1cc*f1cc
+      ENDIF
+                                                  
       RETURN                                                            
       END                                                               
                                                                         
@@ -3315,13 +3432,15 @@ c Changed 8/06 to use better smearing pyb
       logical prttst
       real*8 xval1(50),xvall(50),temp(4)
       integer iq,iw
-      real*8 w1sv(0:1000,0:100),w2sv(0:1000,0:100),w1tmp(0:1000)
-      real*8 delw,w1a,w1b,delq2,w2a,w2b,q2lo,q2hi,w2tmp(0:1000),psm(7)
+      real*8 w1sv(0:1500,0:110),w2sv(0:1500,0:110),w1tmp(0:1500)
+      real*8 delw,w1a,w1b,delq2,w2a,w2b,q2lo,q2hi,w2tmp(0:1500),psm(7)
 
 c make grid if first time through
       if(usegrd.and.first) then
-        do iq=0,100
-          do iw=0,1000
+        do iq=0,110
+          do iw=0,1500
+c        do iq=0,100
+c          do iw=0,1000
             wsq = -10. + 20. * (iw-0.5) / 1000.
 cc            q2 = 0.1 * iq
 c change to use log(q2) grid
@@ -3389,11 +3508,14 @@ C Calculate QSQ and WSQ for this kinematic point:
 c        iq = int(qsq*10.) 
 c changed to log10 q2 bins
         iq = 0
+c        if(qsq.gt.0.01) iq = (alog10(qsq) + 2.0) * 100. / 3.0
         if(qsq.gt.0.01) iq = (alog10(qsq) + 2.0) * 100. / 3.0
         iw = -1
         if(wsq .gt.-10.0) iw = int((wsq + 10.)*50.)
-        if(iw.ge.0.and.iw.lt.1000 .and.
-     >     iq.ge.0.and.iq.lt.100) then
+c        if(iw.ge.0.and.iw.lt.1000 .and.
+c     >     iq.ge.0.and.iq.lt.100) then
+        if(iw.ge.0.and.iw.lt.1500 .and.
+     >     iq.ge.0.and.iq.lt.110) then
           delw = (wsq + 10.)*50. - iw
           if(delw.lt.0.0.or.delw.gt.1.) write(6,'(''error delw2'',
      >      i2,2f10.4)') iq,sqrt(wsq),delw
@@ -4455,9 +4577,12 @@ c      SUBROUTINE READIN_EXT(LEN_FILENAME,FILENAME)
       COMMON /TRL/    TTARG,TWALL,TBEAM,TSPEC,ITARG,NSEG,JTARG
       REAL TTARG,TWALL,TBEAM,TSPEC
       INTEGER ITARG,NSEG,JTARG
-      INTEGER I
+      INTEGER I,J
       CHARACTER*72    COMMENT(6),RAD_STRING/'  '/                           
       CHARACTER*80    EXTERNAL_RUNPLAN,EXTERNAL_TARGET,EXTERNAL_OUT
+      character*80    filename
+      character        dbase_file*60
+      character        base*40
       logical doeg1b
       common/experiment/ doeg1b
       logical smrelasp,usearen
@@ -4467,7 +4592,24 @@ c      SUBROUTINE READIN_EXT(LEN_FILENAME,FILENAME)
 
 c      OPEN(UNIT=20,FILE=FILENAME(1:LEN_FILENAME))
 c      OPEN(UNIT=20,FILE='input/externals/kpp_shms_488.inp')
-      OPEN(UNIT=20,FILE='input/externals/test.inp')
+      write(6,*) 'Enter the input file name (in INP directory)'
+      read(5,'(a)') dbase_file
+      j=index(dbase_file,'/')
+      if (j.eq.0) then          !no path given
+         write(filename,'(a)') 'input/INP/'//dbase_file
+      else
+         write(filename,'(a)') dbase_file
+      endif
+      i=index(filename,'.')
+      j=index(filename,'/')
+      if(i.eq.0) then		!add .inp if not included in filename
+         i=index(filename,' ')
+         if(i+2.le.len(filename)) write(filename(i:),'(''.inp'')')
+      endif
+      write(6,'(a10,a69)')'filename=',filename
+      if (i.gt.1) base=filename(j+5:i-1)
+      write(6,*) 'cheesy poofs',filename
+      OPEN(UNIT=20,FILE=filename)
       READ(20,'(A)') COMMENT(1)
       WRITE(6,'(A)') COMMENT(1)
       READ(20,'(A)') EXTERNAL_RUNPLAN
@@ -4543,7 +4685,21 @@ c      OPEN(UNIT=20,FILE='input/externals/kpp_shms_488.inp')
      >     '; deut elastic=',i2, '; inelastc=',I3, 
      >     '; Pauli Supresion=',i2 /
      >     ' NUCLEAR METHOD=',I2,';   NUCLEAR_MODEL=',I2/)
-                                                                        
+                                                               
+      i = index(base,' ')      	
+      filename = 'output/OUT/'//base(1:i-1)//'.out'                             
+      open(unit=17,file=filename)
+      write(17,*) '***Ebeam    Eprime  Theta     x        Q2'//
+     > '      Sig_Born     Sig_Born_In  Sig_Born_QE  Sig_Rad'//
+     > '      Sig_Rad_EL   Sig_Rad_QE   Sig_Rad_DIS  C_cor'
+c      write(17,*) '***Ebeam    Eprime  Theta, x, Q2  Sig_Born'//
+c     > '  Sig_Born_Inel, Sig_Born_QE, Sig_Rad Sig_Rad_EL'//
+c     > '  Sig_Rad_QE Sig_Rad_DIS C_cor'
+      i = index(base,' ')      	
+      filename = 'output/OUT/'//base(1:i-1)//'_int.out'                             
+      open(unit=18,file=filename)
+
+         
       RETURN                                                            
       END                                                               
                           

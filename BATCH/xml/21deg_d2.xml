@@ -1,0 +1,19 @@
+<Request>
+  <Email email="gaskelld@jlab.org" request="false" job="true"/>
+  <Project name="c-comm2017"/>
+  <Track name="simulation"/>
+  <Name name="xem_externals_test"/>
+  <OS name="centos7"/>
+  <Command><![CDATA[
+source /home/gaskelld/.login
+cd /group/c-xem2/gaskelld/externals_all_xem2/
+time ./run_extern 21degd2cryo17
+   ]]></Command>
+
+  <Memory space="1200" unit="MB"/>
+
+  <Job>
+    <Stdout dest="/group/c-xem2/gaskelld/externals_all_xem2/BATCH/output/21degd2cryo17.stdout"/>
+  </Job>
+
+</Request>
