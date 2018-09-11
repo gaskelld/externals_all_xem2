@@ -338,8 +338,8 @@ C ionization loss and calculate kinematic dependent quantities:
       DELP  = DELP1+DELP2                                               
                                                                         
 ccc pyb TURNED OFF energy loss smearing!
-      DEL0 = 0.
-      DELP = 0.
+c      DEL0 = 0.
+c      DELP = 0.
 
 1     E0 = E0SET-DEL0                                                   
       EP = EPSET+DELP                                                   

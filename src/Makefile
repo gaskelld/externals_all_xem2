@@ -1,4 +1,4 @@
-my_objs     = externals_all.o radiators.o cross.o elastic.o qelastic.o quasiy8.o fyxsec8.o secnuclw.o inelast.o get_cc_info.o
+my_objs     = externals_all.o radiators.o continuum.o qetail.o qepeak.o epeak.o func.o cross.o elastic.o qelastic.o quasiy8.o fyxsec8.o secnuclw.o inelast.o get_cc_info.o
 
 #CERNLIBS = /apps/cernlib/x86_64_rhel7/2005/lib -lmathlib 
 #CERNLIBS = /u/site/cernlib/x86_64_rhel7/2005/lib -lmathlib
