@@ -1,4 +1,4 @@
-my_objs     = externals_all.o readin_ext.o radiators.o continuum.o atailfl.o qetail.o qepeak.o epeak.o func.o cross.o elastic.o qelastic.o quasiy8.o fyxsec8.o secnuclw.o inelast.o ineft.o f2glob.o f2allm.o f1f207.o f1f2qe07.o f1f209.o f1f2qe09.o gsmearing.o f1f2qe16.o inelastic_models.o get_cc_info.o
+my_objs     = externals_all.o readin_ext.o radiators.o radc.o continuum.o atailfl.o qetail.o qepeak.o epeak.o func.o cross.o nuclear_elastic.o elastic.o nform.o qelastic.o quasiy8.o fyxsec8.o secnuclw.o inelast.o ineft.o f2glob.o f2allm.o f1f207.o f1f2qe07.o f1f209.o f1f2qe09.o gsmearing.o f1f2qe16.o inelastic_models.o get_cc_info.o
 
 #CERNLIBS = /apps/cernlib/x86_64_rhel7/2005/lib -lmathlib 
 #CERNLIBS = /u/site/cernlib/x86_64_rhel7/2005/lib -lmathlib
