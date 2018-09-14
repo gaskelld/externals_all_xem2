@@ -986,3 +986,61 @@ C==============================================================
       endif   
 
       end
+
+   
+      
+
+      SUBROUTINE tunatarg(diam,thick,ztar,trad,cryo_cm, wall_cm)
+
+c inputes: diam: cell diameter in cm
+c          thick: cell wall thickness in cm
+c          ztar in cm (0 is center of target)
+c          trad in radians
+c output: cryo_cm cm of cryogen for scttered electron
+c         wall_cm amount of Al wall in cm
+
+C This subroutine calculates the amount of target material in cm
+C that is transversed in the cryogen and cell wall of the Hall C 
+C tuna can target for an electron detected at a scattering angle, theta.
+C This doesn't currently include the beam on target position.
+C E. Christy 6/05. Modified by P. Bosted 6/05.
+
+      IMPLICIT none
+
+      integer i
+      real diam,R,R1,thick,trad,cryo_cm,wall_cm
+      real ztar,zmax,zmin,zint,xint,zdiff,li,lf(2)
+      real a,b,c,ctan,ctan2
+
+      R1 = diam/2.
+      
+      zmax =  diam/2 - 1.e-4
+      zmin = -diam/2 + 1.e-4
+      if(ztar.GT.zmax) ztar = zmax  !!! don't go outside target wall  !!!
+      if(ztar.lt.zmin) ztar = zmin  !!! don't go outside target wall  !!!
+
+      ctan = 1/tan(trad)
+      ctan2 = ctan*ctan
+      a = 1. + ctan2
+      b = 2.*ztar*ctan
+     
+      do i=1,2      !!!  Loop over inner and outer radius of cell wall  !!!
+       R = R1
+       if(i.eq.2) R = R1 + thick
+       c = ztar*ztar - R*R
+       xint = ((-1.)*b + sqrt(b*b - 4.*a*c))/2./a !!! z intersection of line and circle     !!!   
+       zint = sqrt(R*R - xint*xint)  !!! x intersection of line and circle     !!! 
+       if(xint.LT.0) then   !!!  choose other solution  !!!
+         xint = ((-1.)*b - sqrt(b*b - 4.*a*c))/2./a !!! z intersection of line and circle   !!! 
+         zint = sqrt(R*R - zint*zint)  !!! x intersection of line and circle     !!! 
+       endif
+       zdiff = zint - ztar           !!! z distance transversed                !!!  
+       lf(i) = sqrt(xint*xint + zdiff*zdiff)  !!!  total distance transversed  !!!
+      enddo
+      li = ztar + R1
+
+      wall_cm = lf(2) - lf(1)
+      cryo_cm = lf(1)
+
+      return
+      end
